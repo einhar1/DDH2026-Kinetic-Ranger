@@ -5,6 +5,8 @@ from fastapi.testclient import TestClient
 from kinetic_ranger.ai.vertex_summarizer import AISummaryError, VertexAISummarizer
 from kinetic_ranger.api.ai_summary import _build_run_facts
 from kinetic_ranger.api.main import app
+from kinetic_ranger.config import load_config
+from kinetic_ranger.logging import RunWriter
 from kinetic_ranger.models import AlertDecision, RadioObservation, ThreatEstimate
 
 @pytest.fixture(autouse=True)
@@ -134,15 +136,23 @@ def test_summarize_run_raises_when_model_call_fails():
         summarizer.summarize_run(run_facts)
 
 
-def test_ai_summary_endpoint_returns_502_when_ai_fails(monkeypatch):
+def test_ai_summary_endpoint_returns_502_when_ai_fails(monkeypatch, tmp_path):
     def _boom(self, run_facts: dict) -> str:
         del self, run_facts
         raise AISummaryError("AI summary request failed: backend unavailable")
 
     monkeypatch.setattr(VertexAISummarizer, "summarize_run", _boom)
+    monkeypatch.setenv("KR_RUNS_DIR", str(tmp_path))
+
+    observation, estimate, alert, telemetry, range_m = _snapshot(
+        0.0, -63.0, 9.2, True, "warning"
+    )
+    with RunWriter(tmp_path, "simulate", load_config()) as writer:
+        writer.log_snapshot(observation, estimate, alert, telemetry, range_m)
+        run_id = writer.path.name
 
     with TestClient(app) as client:
-        response = client.get("/runs/20260518-134645_dashboard/ai_summary")
+        response = client.get(f"/runs/{run_id}/ai_summary")
 
     assert response.status_code == 502
     assert response.json()["detail"] == "AI summary request failed: backend unavailable"
