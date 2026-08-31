@@ -1,5 +1,7 @@
 # Kinetic Ranger
 
+[![CI](https://github.com/einhar1/DDH2026/actions/workflows/ci.yml/badge.svg)](https://github.com/einhar1/DDH2026/actions/workflows/ci.yml)
+
 Kinetic Ranger is an early-stage passive RF threat-detection prototype with:
 
 - a Python backend package in `src/kinetic_ranger`
@@ -264,6 +266,18 @@ From `frontend/`:
 pnpm lint
 pnpm build
 ```
+
+## Continuous integration
+
+GitHub Actions runs the same checks for every push and pull request:
+
+- `Backend tests` installs Python 3.11 dependencies and runs `pytest`
+- `Frontend checks` installs the locked pnpm dependencies, runs ESLint, and builds the production bundle
+
+The jobs run in parallel and can also be started manually from the repository's
+Actions page. To prevent unverified changes from being merged, configure branch
+protection for the main branch and require both `Backend tests` and
+`Frontend checks` to pass.
 
 ## Frontend docs
 

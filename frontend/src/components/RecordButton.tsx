@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   getRecordingStatus,
   startRecording,
@@ -49,27 +49,22 @@ export default function RecordButton({ mode, onRecordingStopped, onMessage }: Pr
   }, []);
 
   // Elapsed time ticker while recording
-  const startedAtRef = useRef<number | null>(null);
-  startedAtRef.current = status?.recording && status.started_at_s != null
-    ? status.started_at_s
-    : null;
-
   useEffect(() => {
     if (!status?.recording || status.started_at_s == null) {
-      setElapsedSeconds(0);
       return;
     }
 
+    const startedAt = status.started_at_s;
     const tick = () => {
-      const startedAt = startedAtRef.current;
-      if (startedAt != null) {
-        setElapsedSeconds(Math.max(0, Date.now() / 1000 - startedAt));
-      }
+      setElapsedSeconds(Math.max(0, Date.now() / 1000 - startedAt));
     };
 
-    tick();
+    const initialTickId = window.setTimeout(tick, 0);
     const id = setInterval(tick, 500);
-    return () => clearInterval(id);
+    return () => {
+      clearTimeout(initialTickId);
+      clearInterval(id);
+    };
   }, [status?.recording, status?.started_at_s]);
 
   const recording = status?.recording ?? false;

@@ -95,8 +95,12 @@ export default function RadarView({ targets }: Props) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
 
-  const [mapStatus, setMapStatus] = useState<MapStatus>('loading');
-  const [locationStatus, setLocationStatus] = useState<LocationStatus>('pending');
+  const [mapStatus, setMapStatus] = useState<MapStatus>(() =>
+    import.meta.env.VITE_MAPBOX_TOKEN ? 'loading' : 'missing-token',
+  );
+  const [locationStatus, setLocationStatus] = useState<LocationStatus>(() =>
+    navigator.geolocation ? 'pending' : 'fallback',
+  );
   const [position, setPosition] = useState(FALLBACK_POSITION);
   const [accuracyM, setAccuracyM] = useState<number | null>(null);
   const [maxRangeM, setMaxRangeM] = useState(DEFAULT_RANGE_M);
@@ -110,12 +114,6 @@ export default function RadarView({ targets }: Props) {
   // typing (empty, partial numbers) without clamping until commit.
   const [rangeDraft, setRangeDraft] = useState(String(DEFAULT_RANGE_M));
   const [headingDraft, setHeadingDraft] = useState('0');
-  useEffect(() => {
-    setRangeDraft(String(maxRangeM));
-  }, [maxRangeM]);
-  useEffect(() => {
-    setHeadingDraft(String(heading));
-  }, [heading]);
 
   function commitRange(raw: string) {
     const num = Number(raw);
@@ -125,6 +123,7 @@ export default function RadarView({ targets }: Props) {
     }
     const clamped = Math.max(MIN_RANGE_M, Math.min(MAX_RANGE_M, Math.round(num)));
     setMaxRangeM(clamped);
+    setRangeDraft(String(clamped));
   }
 
   function commitHeading(raw: string) {
@@ -135,21 +134,23 @@ export default function RadarView({ targets }: Props) {
     }
     const wrapped = ((Math.round(num) % 360) + 360) % 360;
     setHeading(wrapped);
+    setHeadingDraft(String(wrapped));
   }
 
   // Ref mirrors so the once-on-mount map-load handler reads the latest values
   // without forcing the whole map to recreate when controls change.
   const rangeRef = useRef(maxRangeM);
-  rangeRef.current = maxRangeM;
   const positionRef = useRef(position);
-  positionRef.current = position;
   const headingRef = useRef(heading);
-  headingRef.current = heading;
+  useEffect(() => {
+    rangeRef.current = maxRangeM;
+    positionRef.current = position;
+    headingRef.current = heading;
+  }, [maxRangeM, position, heading]);
 
   // Geolocation — continuous watch so the map follows operator movement.
   useEffect(() => {
     if (!navigator.geolocation) {
-      setLocationStatus('fallback');
       return undefined;
     }
 
@@ -180,27 +181,24 @@ export default function RadarView({ targets }: Props) {
     if (!mapContainerRef.current) return undefined;
 
     if (!token) {
-      setMapStatus('missing-token');
       return undefined;
     }
 
     mapboxgl.accessToken = token;
-    setMapStatus('loading');
-
     let map: mapboxgl.Map | null = null;
     try {
       map = new mapboxgl.Map({
         container: mapContainerRef.current,
         style: MAP_STYLE,
-        center: [position.lng, position.lat],
+        center: [positionRef.current.lng, positionRef.current.lat],
         zoom: 13,
         bearing: 0,
         pitch: 0,
         interactive: false,
       });
-    } catch (err) {
-      setMapStatus('error');
-      return undefined;
+    } catch {
+      const errorStatusId = window.setTimeout(() => setMapStatus('error'), 0);
+      return () => window.clearTimeout(errorStatusId);
     }
 
     mapRef.current = map;
@@ -315,7 +313,11 @@ export default function RadarView({ targets }: Props) {
               max={MAX_RANGE_M}
               step={RANGE_STEP_M}
               value={maxRangeM}
-              onChange={(e) => setMaxRangeM(Number(e.target.value))}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                setMaxRangeM(value);
+                setRangeDraft(String(value));
+              }}
               className="radar-range-slider"
               aria-label="Radar max range slider"
             />
@@ -349,7 +351,11 @@ export default function RadarView({ targets }: Props) {
               max={359}
               step={1}
               value={heading}
-              onChange={(e) => setHeading(Number(e.target.value))}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                setHeading(value);
+                setHeadingDraft(String(value));
+              }}
               className="radar-range-slider"
               aria-label="Direction facing slider (compass degrees)"
             />
@@ -374,7 +380,10 @@ export default function RadarView({ targets }: Props) {
             <button
               type="button"
               className="radar-heading-reset"
-              onClick={() => setHeading(0)}
+              onClick={() => {
+                setHeading(0);
+                setHeadingDraft('0');
+              }}
               title="Reset to north-up"
               aria-label="Reset heading to north"
             >
