@@ -269,7 +269,7 @@ pnpm build
 
 ## Continuous integration
 
-GitHub Actions runs the same checks for every push and pull request:
+GitHub Actions runs the same checks for every push to main and pull request:
 
 - `Backend tests` installs Python 3.11 dependencies and runs `pytest`
 - `Frontend checks` installs the locked pnpm dependencies, runs ESLint, and builds the production bundle
