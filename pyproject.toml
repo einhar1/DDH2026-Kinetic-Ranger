@@ -19,6 +19,8 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.2",
+    "httpx2>=2.0",
+    "starlette>=1.2",
 ]
 ai = [
     "google-genai>=2.4.0",
@@ -42,3 +44,9 @@ where = ["src"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+filterwarnings = [
+    "error",
+    # Upstream TestClient alias; remove once Starlette releases the fix:
+    # https://github.com/Kludex/starlette/pull/3498
+    'ignore:^The anyio\.abc\.BlockingPortal alias is deprecated, use anyio\.from_thread\.BlockingPortal instead\.$:DeprecationWarning:starlette\.testclient',
+]

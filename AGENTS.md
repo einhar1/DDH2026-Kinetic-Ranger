@@ -79,6 +79,10 @@ pnpm dev
 The checked-in configuration and localhost frontend URLs cover normal local
 development. Change them only when the hardware, network, or deployment differs.
 
+Backend tests require the `dev` and `ai` extras. Pytest treats warnings as errors;
+keep any temporary upstream exceptions narrowly scoped and documented in
+`pyproject.toml`.
+
 ## Change guidance
 
 - Add or update tests for estimator, alerting, parsing, recording, replay, or

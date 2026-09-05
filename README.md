@@ -118,11 +118,16 @@ working default and normally does not need to be configured.
 
 ## Development and CI
 
-Run backend checks from the repository root:
+Install test dependencies and run backend checks from the repository root:
 
 ```text
+pip install -e ".[dev,ai]"
 python -m pytest
 ```
+
+Pytest treats warnings as errors locally and in CI. A narrowly scoped exception
+for an upstream Starlette deprecation is documented in `pyproject.toml`; remove
+it when the upstream fix is released.
 
 Run frontend checks from `frontend/`:
 
