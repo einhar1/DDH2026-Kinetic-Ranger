@@ -1,0 +1,41 @@
+flowchart LR
+    subgraph Runtime["Kinetic Ranger runtime"]
+        Source["Simulation<br/>or live SDR"]
+        Capture["Signal capture<br/>IQ windows"]
+        Features["Feature extraction<br/>RSSI, SNR, confidence"]
+        Estimator["EKF estimator<br/>closing rate and TTC"]
+        Alert["Alert rule engine"]
+        Stream["FastAPI<br/>WebSocket"]
+        Dashboard["React dashboard"]
+
+        Source --> Capture
+        Capture --> Features
+        Features --> Estimator
+        Estimator --> Alert
+        Alert --> Stream
+        Stream --> Dashboard
+    end
+
+    subgraph Replay["Record and replay"]
+        Writer["RunWriter"]
+        Artifact["Recorded run<br/>manifest and snapshots"]
+        Reader["RunReader"]
+
+        Alert --> Writer
+        Writer --> Artifact
+        Artifact --> Reader
+        Reader --> Estimator
+    end
+
+    subgraph CI["Automated verification"]
+        Actions["GitHub Actions"]
+        BackendTests["Backend tests<br/>pytest"]
+        FrontendChecks["Frontend<br/>lint and build"]
+
+        Actions --> BackendTests
+        Actions --> FrontendChecks
+        BackendTests -. verifies .-> Estimator
+        BackendTests -. verifies .-> Alert
+        BackendTests -. verifies .-> Reader
+        FrontendChecks -. verifies .-> Dashboard
+    end
