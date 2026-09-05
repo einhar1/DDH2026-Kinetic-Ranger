@@ -1,41 +1,52 @@
-# Frontend
+# Kinetic Ranger frontend
 
-This folder contains the Vite + React + TypeScript dashboard for Kinetic Ranger.
+This directory contains the Vite, React, and TypeScript operator dashboard for
+Kinetic Ranger.
 
-## What it does today
+## Functionality
 
-- connects to backend WebSocket via env-configurable URL
-- shows the threat banner, radar display, metrics, and RSSI history
-- renders simulated backend data in real time
+- consumes live, simulated, and replayed radar payloads over WebSocket
+- shows receiver mode, connection state, threat level, target metrics, radar
+  positions, and RSSI history
+- switches the backend between SIM and LIVE AntSDR sources
+- starts, pauses, resets, and configures backend simulation
+- supports multiple simulated targets and selectable demonstration scenarios
+- starts and stops recording of the active source
+- lists recorded runs with duration, tick count, and peak severity
+- loads recorded runs and provides pause, play, and seek controls
+- optionally requests Agent Platform summaries for recorded runs
+- reconnects the WebSocket client when the connection is interrupted
 
-## What it does not do yet
+The bursty-transmission control is disabled because that signal model is not yet
+implemented.
 
-- the controls in `SimulationControls.tsx` are still local UI state only
-- there are no REST endpoints yet for starting, pausing, resetting, or reconfiguring the simulation
+## Install and run
 
-## Install
-
-From this folder:
+Install dependencies:
 
 ```text
 pnpm install
 ```
 
-## Run
-
-Start the backend first from the repository root:
+Start the FastAPI backend from the repository root:
 
 ```text
 python -m uvicorn kinetic_ranger.api.main:app --reload --port 8000
 ```
 
-Then start the frontend from this folder:
+Start the frontend:
 
 ```text
 pnpm dev
 ```
 
-Useful commands:
+Open <http://localhost:5173>.
+
+The checked-in localhost defaults work for normal local development. Backend
+schemas in `src/kinetic_ranger/api/schemas.py` and frontend types in
+`src/lib/types.ts` must remain aligned.
+
+## Development checks
 
 ```text
 pnpm lint
@@ -43,19 +54,9 @@ pnpm build
 pnpm preview
 ```
 
-## Important implementation notes
+GitHub Actions runs lint and a production build for pull requests and pushes to
+`main`.
 
-- REST base URL is controlled by `VITE_API_BASE_URL` (default `http://localhost:8000`)
-- WebSocket URL is controlled by `VITE_WS_URL`, or derived from API base to `/ws/radar`
-- TypeScript is configured with `erasableSyntaxOnly`, so avoid TypeScript features that require emitted runtime transforms, such as constructor parameter properties
-- the dashboard expects simulation payloads shaped like `frontend/src/lib/types.ts`, which must stay aligned with `src/kinetic_ranger/api/schemas.py`
-
-## Main files
-
-- `src/App.tsx` — top-level layout and WebSocket hookup
-- `src/components/RadarView.tsx` — radar-style visualization
-- `src/components/MetricsPanel.tsx` — target metrics
-- `src/components/SignalGraph.tsx` — RSSI history graph
-- `src/components/SimulationControls.tsx` — simulation control scaffold
-- `src/lib/types.ts` — frontend wire types
-- `src/lib/websocket.ts` — reconnecting WebSocket client
+The application is composed in `src/App.tsx`. UI components are in
+`src/components/`, while API, WebSocket, and shared type definitions are in
+`src/lib/`.
