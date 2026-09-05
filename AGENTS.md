@@ -1,122 +1,99 @@
 # AGENTS.md
 
-Lightweight guidance for AI coding agents working in this repository.
-
-This project is still early-stage and likely to be restructured. Treat the notes below as **working guidance, not rigid law**: prefer preserving momentum, keeping changes easy to reshape, and avoiding premature abstractions.
+Practical guidance for AI coding agents working in this repository.
 
 ## Project snapshot
 
-Kinetic Ranger is a passive RF closure-detection MVP with:
+Kinetic Ranger is a working passive RF closure-detection application with:
 
-- a Python backend/package in `src/kinetic_ranger`
-- a FastAPI + WebSocket API for a live radar-style feed
-- a React + TypeScript + Vite frontend in `frontend/`
-- simulation-first workflows, with optional live hardware support later
+- a Python package and FastAPI backend in `src/kinetic_ranger/`
+- live capture from a Pluto/IIO-compatible AntSDR
+- simulation and recorded-run replay through the same processing pipeline
+- a React, TypeScript, and Vite operator dashboard in `frontend/`
+- recording, CSV export, optional Agent Platform summaries, and GitHub Actions CI
 
-Start by reading:
+Read the root [`README.md`](./README.md), the frontend
+[`frontend/README.md`](./frontend/README.md), and the relevant source before
+changing behavior. Treat the code and tests as the source of truth.
 
-- root [`README.md`](./README.md)
-- frontend [`frontend/README.md`](./frontend/README.md)
-- default runtime config [`configs/default.toml`](./configs/default.toml)
+## Repository map
 
-## Repo map
+Key backend areas:
 
-### Backend modules
+- `api/` — FastAPI setup, REST routes, WebSocket streaming, runtime sources,
+  recording, and AI-summary endpoint
+- `radio/` — simulated and AntSDR capture plus IQ feature extraction
+- `estimation/` and `alerting/` — tracking and threat evaluation
+- `logging/` — run writing, reading, replay input, and CSV export
+- `cli.py` — `live`, `simulate`, `replay`, and `export` commands
+- `config.py`, `models.py`, and `api/schemas.py` — configuration and contracts
 
-Important areas in `src/kinetic_ranger/`:
+Key frontend areas:
 
-- `cli.py` — CLI entrypoints: `simulate`, `replay`, `live`, `export`
-- `logging/run_writer.py`, `logging/run_reader.py`, `logging/exporter.py` — run-directory I/O. `RunWriter` is the canonical writer used by every CLI subcommand and by the FastAPI replay path; `RunReader` parses it back; `export_run` produces flat CSVs (observations / alerts / telemetry).
-- `api/main.py` — FastAPI app setup and CORS
-- `api/websocket.py` / `api/simulation_service.py` — WebSocket streaming path. `SimulationService` is the synthetic source; `ReplayFrameSource` (same file) drives the same pipeline from a recorded run when `KR_REPLAY_SOURCE` is set.
-- `radio/capture.py` — simulation and hardware capture interfaces
-- `radio/features.py` — IQ-window feature extraction
-- `estimation/ekf.py` — tracking / estimation logic
-- `alerting/rules.py` — alert evaluation and severity logic
-- `config.py` — TOML config loading
-- `models.py` / `api/schemas.py` — data and wire-shape definitions
-
-### Frontend modules
-
-Important areas in `frontend/src/`:
-
-- `App.tsx` — app composition and WebSocket hookup
-- `components/RadarView.tsx` — main radar visualization
-- `components/MetricsPanel.tsx` — target metrics
-- `components/SignalGraph.tsx` — signal trends/history
-- `components/ThreatBanner.tsx` — top-level status banner
-- `components/SimulationControls.tsx` — simulation-facing controls
+- `App.tsx` — dashboard composition and WebSocket lifecycle
+- `components/` — visualization and live/simulation/record/replay controls
 - `lib/types.ts` — frontend wire types
-- `lib/websocket.ts` — WebSocket client lifecycle/reconnect logic
+- `lib/websocket.ts` and `lib/runsApi.ts` — backend clients
 
-## Preferred workflow
+## Working principles
 
-### Keep changes small and reshapeable
+- Keep changes focused and avoid unrelated cleanup.
+- Preserve the shared processing path across live, simulated, and replayed data.
+- Use simulation and replay for repeatable automated tests; validate against
+  hardware when a change affects capture or live-source behavior.
+- Keep hardware-specific code behind the capture/source boundary.
+- Keep documentation concise. Document settings users normally need to change,
+  rather than duplicating every default from `configs/default.toml`.
 
-Because the repo is still settling:
+## Backend/frontend contracts
 
-- prefer small, local changes over big architectural rewrites
-- avoid introducing heavy abstractions unless a pattern is clearly repeating
-- preserve readable code and clear data flow over cleverness
-- if a rename or restructure is needed, keep it surgical and easy to undo
+When changing radar payloads or API data:
 
-### Respect the simulation-first path
-
-Unless the task is explicitly about hardware:
-
-- prefer simulation, replay, and tests over assumptions about live SDR behavior
-- keep hardware-specific logic isolated behind the capture layer
-- do not make the live path mandatory for normal development
-
-### Keep backend/frontend contracts aligned
-
-When changing radar payloads or UI data:
-
-- update backend wire models in `src/kinetic_ranger/api/schemas.py`
+- update backend schemas in `src/kinetic_ranger/api/schemas.py`
 - update matching frontend types in `frontend/src/lib/types.ts`
-- check WebSocket consumers in `frontend/src/App.tsx` and related components
+- check consumers in `frontend/src/App.tsx` and related components
 
-## Useful commands
+Type drift can break the dashboard without an obvious backend error.
 
-Run these from the repo root unless noted otherwise.
+## Commands
 
-### Backend commands
+From the repository root:
 
-- install dev dependencies: `pip install -e .[dev]`
-- install optional hardware + viz extras: `pip install -e .[dev,hardware,viz]`
-- run tests: `pytest`
-- run CLI simulation: `python -m kinetic_ranger simulate`
-- run API server: `python -m uvicorn kinetic_ranger.api.main:app --reload --port 8000`
+```text
+pip install -e .[dev,hardware]
+python -m pytest
+python -m kinetic_ranger simulate
+python -m kinetic_ranger live
+python -m uvicorn kinetic_ranger.api.main:app --reload --port 8000
+```
 
-### Frontend commands
+From `frontend/`:
 
-Run these in `frontend/`:
+```text
+pnpm install
+pnpm lint
+pnpm build
+pnpm dev
+```
 
-- install dependencies: `pnpm install`
-- start dev server: `pnpm dev`
-- build production bundle: `pnpm build`
-- lint: `pnpm lint`
+The checked-in configuration and localhost frontend URLs cover normal local
+development. Change them only when the hardware, network, or deployment differs.
 
-## Practical gotchas
+Backend tests require the `dev` and `ai` extras. Pytest treats warnings as errors;
+keep any temporary upstream exceptions narrowly scoped and documented in
+`pyproject.toml`.
 
-- `configs/default.toml` is the default runtime config; running from unusual working directories may require an explicit `--config`.
-- The frontend expects the backend WebSocket at `ws://localhost:8000/ws/radar` unless changed in code.
-- CORS in `src/kinetic_ranger/api/main.py` is currently set for the Vite dev server at `http://localhost:5173`.
-- The live SDR path depends on optional hardware support (`pyadi-iio` via the `hardware` extra).
-- The live path currently assumes Pluto/IIO-compatible workflows; keep hardware assumptions contained and easy to swap.
-- Type drift between `api/schemas.py` and `frontend/src/lib/types.ts` is an easy way to break the UI quietly.
+## Change guidance
 
-## Change guidance for agents
+- Add or update tests for estimator, alerting, parsing, recording, replay, or
+  feature-extraction changes.
+- Verify both backend and frontend when changing a shared API contract.
+- Keep live capture functional; do not silently replace hardware behavior with
+  simulation.
+- Preserve graceful API startup fallback to simulation when hardware is absent.
+- Update this file and the README when capabilities or workflows materially
+  change.
 
-When contributing here:
-
-- prefer updating existing patterns before inventing new ones
-- keep comments and docs brief and practical
-- add tests when changing estimator, alerting, parsing, or feature-extraction behavior
-- avoid broad cleanup unrelated to the task unless it is required to make the change safe
-- if the structure changes, update this file lightly rather than trying to make it exhaustive
-
-## When unsure
-
-Use the current code as the source of truth, and treat this file as a fast-start map.
-If the repo evolves, favor adapting to the new shape over preserving outdated instructions.
+Current design constraints include first-channel live capture, no measured
+bearing from the single-antenna setup, and no absolute live range without known
+transmitter power. Do not describe those estimates as direct measurements.
