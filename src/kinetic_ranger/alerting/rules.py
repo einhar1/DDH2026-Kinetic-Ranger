@@ -13,7 +13,7 @@ class AlertRuleEngine:
 
     def evaluate(self, estimate: ThreatEstimate, observation: RadioObservation) -> AlertDecision:
         timestamp_s = estimate.timestamp_s
-        closing_fast = estimate.closing_rate_mps >= -self.config.min_closing_rate_mps
+        closing_fast = estimate.closing_rate_mps <= -self.config.min_closing_rate_mps
         confident = min(estimate.confidence, observation.confidence) >= self.config.min_confidence
         imminent = (
             estimate.time_to_impact_s is not None
